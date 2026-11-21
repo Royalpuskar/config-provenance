@@ -2,7 +2,7 @@
 
 Merge flat configuration layers and explain each effective value without showing marked secrets.
 
-**Status:** implemented browser-local research prototype. Automated tests can be reproduced with the command below. GitHub Pages deployed and browser smoke checks completed on 20 November 2026.
+**Status:** implemented browser-local research prototype. Automated tests can be reproduced with the command below. The existing GitHub Pages site previously passed smoke checks; the current validation update has local test coverage only. Its live deployment and browser behavior have not yet been verified.
 
 ## Website
 
@@ -10,7 +10,7 @@ Live website: https://royalpuskar.github.io/config-provenance/
 
 ## Problem and approach
 
-This tool makes the supplied developer tools scenario inspectable through explicit rules, per-item results, and exportable evidence. It runs the same pure JavaScript engine in the browser and Node tests. All input is provided by the user or the included synthetic fixture; no external facts are inferred.
+Developers often combine defaults and environment-specific configuration without knowing which layer supplied an effective value. This tool applies last-layer-wins overrides and records the assignment path for each key. It runs the same pure JavaScript engine in the browser and Node tests. All input is provided by the user or the included synthetic fixture; no external facts are inferred.
 
 ## Implemented features
 
@@ -65,23 +65,23 @@ The complete example in `sample.mjs` defines the supported input shape:
 
 Edit one value and select **Run analysis**. **Reset example** restores the fixture. **Export report** downloads the current result; it never publishes it.
 
-Input is capped at 200,000 serialized characters, arrays processed by the engine at 500 elements, and numeric magnitudes at 1e12. Domain constraints are checked inside `engine.mjs`; unsupported structures return an error.
+The root must contain exactly `secretKeys` and `layers`; each layer must contain exactly `name` and `values`. Values must be flat JSON scalars: strings, finite numbers, booleans, or null. Nested objects and arrays are rejected, including under secret-marked keys. Names and secret-key declarations must be nonempty text of at most 100,000 characters. Each input array is limited to 500 items and the normalized input to 200,000 serialized characters. The browser also limits raw editor input to 200,000 characters. These are character limits, not byte limits. Direct module calls must use plain data objects and arrays without accessor entries; JavaScript proxies are outside this API contract.
 
 ## Architecture and request flow
 
-`index.html` loads `app.mjs`, which parses scenario JSON and calls `run` from `engine.mjs`. The engine returns `metrics` and `rows`; the UI renders values with `textContent`, never user-supplied HTML. Editing invalidates the prior report. Export creates a local Blob download.
+`index.html` loads `app.mjs`, which parses scenario JSON and calls `run` from `engine.mjs`. The engine returns `metrics`, `rows`, `unmatchedSecretKeys`, and value-free `provenance`. Each row includes a zero-based `sourceIndex`; provenance assignments include layer indices so repeated names remain distinguishable. Unmatched secret-key declarations are deduplicated and sorted to help detect misspellings. The UI displays these diagnostics in the raw report and summary metrics; the UI renders values with `textContent`, never user-supplied HTML. Editing invalidates the prior report. Export creates a local Blob download.
 
 There is no application authentication, credential store, session cookie, or token lifecycle. GitHub Pages serves public static files. The app does not collect passwords or API keys, contact third-party APIs, persist inputs, or send scenario data over the network. GitHub hosting can still receive ordinary page request metadata. Reloading discards edits.
 
 ## Limitations
 
-Flat key override semantics only. Secret detection is based on explicit key names, not content scanning.
+Flat key override semantics only. Redaction uses exact, case-sensitive key declarations, not content scanning. Marked values never enter report rows or provenance, including overridden values. Keys, layer names, and unmatched declarations are public report metadata: do not put credentials in them. Unmarked scalar values are included in reports. The input editor still contains the original values until edited or reloaded; redaction is not secure memory erasure. JSON syntax errors use a generic message rather than echoing parser snippets.
 
 The interface shares a portfolio design system, while this repository has its own domain engine, fixture, and tests. No accuracy, novelty, production-readiness, or 4K visual-test claim is made. Large-screen CSS is not a substitute for device testing.
 
 ## Validation
 
-Three local automated test cases passed on 20 November 2026. Live browser checks covered sample results, invalid-input errors, stale-export prevention, and reset. These checks do not establish exhaustive browser coverage.
+Nine local Node tests pass for this update. They cover the synthetic nested-secret regression, repeated layer names, overridden secret values, unmatched declarations, falsy values and prototype-named keys, non-JSON values, accessor rejection, deterministic results, input preservation, and size limits. Before the fix, a nested `service.token` value appeared in a report despite `token` being declared secret; the same input now fails with a value-free schema error. This is a reproducible regression result, not a security benchmark. Browser, mobile, and 3840×2160 checks have not been rerun for this update.
 
 `test.mjs` checks domain outcomes and edge cases, deterministic behavior, input preservation, malformed roots, and size limits. GitHub Actions runs the same suite. Review the tests themselves to see exactly what is covered; passing these checks does not establish security or exhaustive correctness.
 
@@ -97,3 +97,4 @@ Three local automated test cases passed on 20 November 2026. Live browser checks
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [LICENSE](LICENSE).
 
 © 2026 Puskar (Royalpuskar). All rights reserved except permissions granted by the MIT license. Preserve applicable third-party notices.
+
