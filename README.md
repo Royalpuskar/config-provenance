@@ -75,13 +75,13 @@ There is no application authentication, credential store, session cookie, or tok
 
 ## Limitations
 
-Flat key override semantics only. Redaction uses exact, case-sensitive key declarations, not content scanning. Marked values never enter report rows or provenance, including overridden values. Keys, layer names, and unmatched declarations are public report metadata: do not put credentials in them. Unmarked scalar values are included in reports. The input editor still contains the original values until edited or reloaded; redaction is not secure memory erasure. JSON syntax errors use a generic message rather than echoing parser snippets.
+Flat key override semantics only. Secret-key matching compares JavaScript `toLowerCase()` results; it is case-insensitive but does not normalize Unicode or detect confusable characters, and it does not scan values for secret-like content. Marked values never enter report rows or provenance, including overridden values. Keys, layer names, and unmatched declarations are public report metadata: do not put credentials in them. Unmarked scalar values are included in reports. The input editor still contains the original values until edited or reloaded; redaction is not secure memory erasure. JSON syntax errors use a generic message rather than echoing parser snippets.
 
 The interface shares a portfolio design system, while this repository has its own domain engine, fixture, and tests. No accuracy, novelty, production-readiness, or 4K visual-test claim is made. Large-screen CSS is not a substitute for device testing.
 
 ## Validation
 
-Nine local Node tests pass for this update. They cover the synthetic nested-secret regression, repeated layer names, overridden secret values, unmatched declarations, falsy values and prototype-named keys, non-JSON values, accessor rejection, deterministic results, input preservation, and size limits. Before the fix, a nested `service.token` value appeared in a report despite `token` being declared secret; the same input now fails with a value-free schema error. This is a reproducible regression result, not a security benchmark. Browser, mobile, and 3840×2160 checks have not been rerun for this update.
+Ten local Node tests pass for this update. They cover the synthetic nested-secret regression, case-insensitive secret-key matching, repeated layer names, overridden secret values, unmatched declarations, falsy values and prototype-named keys, non-JSON values, accessor rejection, deterministic results, input preservation, and size limits. Before the nested-value fix, a nested `service.token` value appeared in a report despite `token` being declared secret; the same input now fails with a value-free schema error. The added case-variant test confirms `ApiToken`, `apitoken`, and `APITOKEN` values are all redacted when `ApiToken` is declared. These are reproducible regression results, not a security benchmark. Browser, mobile, and 3840×2160 checks have not been rerun for this update.
 
 `test.mjs` checks domain outcomes and edge cases, deterministic behavior, input preservation, malformed roots, and size limits. GitHub Actions runs the same suite. Review the tests themselves to see exactly what is covered; passing these checks does not establish security or exhaustive correctness.
 
@@ -97,4 +97,5 @@ Nine local Node tests pass for this update. They cover the synthetic nested-secr
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and [LICENSE](LICENSE).
 
 © 2026 Puskar (Royalpuskar). All rights reserved except permissions granted by the MIT license. Preserve applicable third-party notices.
+
 

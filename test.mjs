@@ -20,6 +20,17 @@ test('redact every assignment and distinguish duplicate layer names', () => {
   assert.equal(report.rows[0].value, '[REDACTED]');
   assert.ok(!JSON.stringify(report).includes('PRIVATE'));
 });
+test('redact secret keys across capitalization variants', () => {
+  const report = run({secretKeys:['ApiToken', 'missing'],layers:[
+    {name:'defaults',values:{apitoken:'LOWER_PRIVATE', APITOKEN:'UPPER_PRIVATE', port:8080}},
+    {name:'prod',values:{ApiToken:'MIXED_PRIVATE'}}
+  ]});
+  assert.deepEqual(report.rows.filter(row => row.key.toLowerCase() === 'apitoken').map(row => row.value),
+    ['[REDACTED]', '[REDACTED]', '[REDACTED]']);
+  assert.equal(report.metrics.redacted, 3);
+  assert.deepEqual(report.unmatchedSecretKeys, ['missing']);
+  assert.ok(!JSON.stringify(report).includes('PRIVATE'));
+});
 test('unmatched declarations are unique and sorted', () => {
   const report = run({secretKeys:['z','a','z'],layers:[]});
   assert.deepEqual(report.unmatchedSecretKeys, ['a','z']);
@@ -44,3 +55,4 @@ test('bound serialized input and arrays', () => {
   assert.throws(() => run({secretKeys:Array(501).fill('x'),layers:[]}));
   assert.throws(() => run({secretKeys:[],layers:new Array(1)}));
 });
+

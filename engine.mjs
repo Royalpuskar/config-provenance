@@ -44,10 +44,12 @@ export function run(input) {
     return {name: text(layer.name), values: Object.fromEntries(entries)};
   });
   if (JSON.stringify({secretKeys, layers}).length > 200000) throw Error('Input exceeds 200000 serialized characters');
-  const secret = new Set(secretKeys), effective = new Map(), provenance = new Map();
+  // A capitalization mismatch should fail closed for common env/config keys.
+  const normalizeKey = key => key.toLowerCase();
+  const secret = new Set(secretKeys.map(normalizeKey)), effective = new Map(), provenance = new Map();
   layers.forEach((layer, layerIndex) => {
     for (const [key, value] of Object.entries(layer.values)) {
-      effective.set(key, {key, value: secret.has(key) ? '[REDACTED]' : JSON.stringify(value),
+      effective.set(key, {key, value: secret.has(normalizeKey(key)) ? '[REDACTED]' : JSON.stringify(value),
         source: layer.name, sourceIndex: layerIndex});
       if (!provenance.has(key)) provenance.set(key, []);
       provenance.get(key).push({layerIndex, layerName: layer.name});
@@ -55,11 +57,18 @@ export function run(input) {
   });
   const rows = [...effective.values()].map(row => ({...row,
     history: provenance.get(row.key).map(p => p.layerName).join(' → ')}));
-  const unmatchedSecretKeys = [...secret].filter(key => !effective.has(key)).sort();
+  const declarations = new Map();
+  for (const key of secretKeys) if (!declarations.has(normalizeKey(key))) declarations.set(normalizeKey(key), key);
+  const presentKeys = new Set([...effective.keys()].map(normalizeKey));
+  const unmatchedSecretKeys = [...declarations]
+    .filter(([normalized]) => !presentKeys.has(normalized))
+    .map(([, declaration]) => declaration)
+    .sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
   return {
-    metrics: {keys: rows.length, redacted: rows.filter(row => secret.has(row.key)).length,
+    metrics: {keys: rows.length, redacted: rows.filter(row => secret.has(normalizeKey(row.key))).length,
       unmatchedSecretKeys: unmatchedSecretKeys.length},
     rows, unmatchedSecretKeys,
     provenance: [...provenance].map(([key, assignments]) => ({key, assignments}))
   };
 }
+
