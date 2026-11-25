@@ -2,7 +2,7 @@
 
 Merge flat configuration layers and explain each effective value without showing marked secrets.
 
-**Status:** implemented browser-local research prototype. Automated tests can be reproduced with the command below. The existing GitHub Pages site previously passed smoke checks; the current validation update has local test coverage only. Its live deployment and browser behavior have not yet been verified.
+**Status:** browser-local research prototype. Ten automated tests pass. The latest commit's test, build, and deployment checks passed, and the live site was exercised with synthetic case-variant keys.
 
 ## Website
 
@@ -17,6 +17,7 @@ Developers often combine defaults and environment-specific configuration without
 - Editable scenario with a synthetic example and reset control.
 - Deterministic analysis, summary metrics, filterable result table, and JSON report export.
 - Input validation, explicit errors, and invalidation of outdated reports after edits.
+- Case-insensitive secret-key matching to prevent common capitalization mismatches from exposing values.
 - Keyboard-accessible controls, responsive layout, and large-screen CSS.
 - Zero runtime dependencies and no external API calls.
 
@@ -69,7 +70,7 @@ The root must contain exactly `secretKeys` and `layers`; each layer must contain
 
 ## Architecture and request flow
 
-`index.html` loads `app.mjs`, which parses scenario JSON and calls `run` from `engine.mjs`. The engine returns `metrics`, `rows`, `unmatchedSecretKeys`, and value-free `provenance`. Each row includes a zero-based `sourceIndex`; provenance assignments include layer indices so repeated names remain distinguishable. Unmatched secret-key declarations are deduplicated and sorted to help detect misspellings. The UI displays these diagnostics in the raw report and summary metrics; the UI renders values with `textContent`, never user-supplied HTML. Editing invalidates the prior report. Export creates a local Blob download.
+`index.html` loads `app.mjs`, which parses scenario JSON and calls `run` from `engine.mjs`. The engine returns `metrics`, `rows`, `unmatchedSecretKeys`, and value-free `provenance`. Secret declarations match keys by JavaScript `toLowerCase()` while preserving the original key spelling in results. Each row includes a zero-based `sourceIndex`; provenance assignments include layer indices so repeated names remain distinguishable. Unmatched secret-key declarations are deduplicated and sorted to help detect misspellings. The UI displays these diagnostics in the raw report and summary metrics; the UI renders values with `textContent`, never user-supplied HTML. Editing invalidates the prior report. Export creates a local Blob download.
 
 There is no application authentication, credential store, session cookie, or token lifecycle. GitHub Pages serves public static files. The app does not collect passwords or API keys, contact third-party APIs, persist inputs, or send scenario data over the network. GitHub hosting can still receive ordinary page request metadata. Reloading discards edits.
 
@@ -81,7 +82,7 @@ The interface shares a portfolio design system, while this repository has its ow
 
 ## Validation
 
-Ten local Node tests pass for this update. They cover the synthetic nested-secret regression, case-insensitive secret-key matching, repeated layer names, overridden secret values, unmatched declarations, falsy values and prototype-named keys, non-JSON values, accessor rejection, deterministic results, input preservation, and size limits. Before the nested-value fix, a nested `service.token` value appeared in a report despite `token` being declared secret; the same input now fails with a value-free schema error. The added case-variant test confirms `ApiToken`, `apitoken`, and `APITOKEN` values are all redacted when `ApiToken` is declared. These are reproducible regression results, not a security benchmark. Browser, mobile, and 3840×2160 checks have not been rerun for this update.
+Ten local Node tests pass for this update. They cover the synthetic nested-secret regression, case-insensitive secret-key matching, repeated layer names, overridden secret values, unmatched declarations, falsy values and prototype-named keys, non-JSON values, accessor rejection, deterministic results, input preservation, and size limits. Before the nested-value fix, a nested `service.token` value appeared in a report despite `token` being declared secret; the same input now fails with a value-free schema error. The added case-variant test confirms `ApiToken`, `apitoken`, and `APITOKEN` values are all redacted when `ApiToken` is declared. The deployed page was also tested with synthetic mixed-case keys: all three values were redacted, with three redacted rows and no unmatched declaration. These are reproducible regression results, not a security benchmark. Mobile and 3840×2160 layouts were not tested.
 
 `test.mjs` checks domain outcomes and edge cases, deterministic behavior, input preservation, malformed roots, and size limits. GitHub Actions runs the same suite. Review the tests themselves to see exactly what is covered; passing these checks does not establish security or exhaustive correctness.
 
